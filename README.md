@@ -21,7 +21,7 @@ conda activate davis
 
 # Install dependencies
 conda install -c conda-forge numpy pillow -y
-pip install dv-processing
+pip install dv-processing pygame pillow numpy
 ```
 ## Usage
 
