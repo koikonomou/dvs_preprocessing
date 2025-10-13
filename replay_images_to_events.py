@@ -74,11 +74,46 @@ def init_display(fullscreen: bool = True):
         font = None
     return screen, clock, size, font
 
-def load_to_512_surface(img_path: str) -> pygame.Surface:
-    # Paper: upsample to 512×512 (bicubic), then blit centered.
-    im = Image.open(img_path).convert("RGB").resize((512, 512), Image.BICUBIC)
-    return pygame.image.frombuffer(im.tobytes(), im.size, "RGB")
+def load_image_surface(img_path: str, fit: str):
+    """
+    Load an image as a pygame.Surface according to `fit` mode.
+    Returns (surface, mapping) where mapping has keys describing the transform:
+      - mode: 'resize' | 'letterbox' | 'none'
+      - in_w, in_h: original image size
+      - out_w, out_h: rendered surface size
+      - scale: scalar (resize) or min-scale (letterbox), 1.0 for none
+      - pad_x, pad_y: top-left padding for letterbox (else 0)
+    """
+    im = Image.open(img_path).convert("RGB")
+    iw, ih = im.size
 
+    if fit == "resize":
+        target = 512
+        im2 = im.resize((target, target), Image.BICUBIC)
+        surf = pygame.image.frombuffer(im2.tobytes(), (target, target), "RGB")
+        mapping = dict(mode="resize", in_w=iw, in_h=ih, out_w=target, out_h=target,
+                       scale=min(target/iw, target/ih), pad_x=0, pad_y=0)
+
+    elif fit == "letterbox":
+        target = 512
+        scale = min(target / iw, target / ih)
+        nw, nh = max(1, int(round(iw * scale))), max(1, int(round(ih * scale)))
+        im2 = im.resize((nw, nh), Image.BICUBIC)
+        canvas = Image.new("RGB", (target, target), (0, 0, 0))
+        pad_x = (target - nw) // 2
+        pad_y = (target - nh) // 2
+        canvas.paste(im2, (pad_x, pad_y))
+        surf = pygame.image.frombuffer(canvas.tobytes(), (target, target), "RGB")
+        mapping = dict(mode="letterbox", in_w=iw, in_h=ih, out_w=target, out_h=target,
+                       scale=scale, pad_x=pad_x, pad_y=pad_y)
+
+    else:  # 'none' → original size
+        # No scaling; use native image resolution
+        surf = pygame.image.frombuffer(im.tobytes(), (iw, ih), "RGB")
+        mapping = dict(mode="none", in_w=iw, in_h=ih, out_w=iw, out_h=ih,
+                       scale=1.0, pad_x=0, pad_y=0)
+
+    return surf, mapping
 
 # ------------------------------- Motion generators ----------------------------
 
@@ -168,11 +203,13 @@ def record_one_image(cam,
                      step: int,
                      speed: int,
                      transition_s: float,
-                     simple_duration_s: float):
+                     simple_duration_s: float,
+                     fit: str="resize"):
     """Display one image with motion, record to AEDAT, return (events, frames) counts."""
     # Load image
-    surf = load_to_512_surface(img_path)
+    surf, mapping = load_image_surface(img_path, fit=fit)
     iw, ih = surf.get_size()
+
 
     # Motion sequence
     if pattern == "RCLS":
@@ -269,6 +306,9 @@ def main():
     # Simple sweep fallback
     ap.add_argument("--duration", type=float, default=2.5, help="Duration for simple H/V/HV motion (s)")
     ap.add_argument("--meta-csv", default=None, help="Optional meta CSV path (default: <out-dir>/../meta/meta.csv)")
+    ap.add_argument("--fit", choices=["resize", "letterbox", "none"], default="resize",
+    help="How to place images: 'resize' (stretch to 512x512), 'letterbox' (preserve aspect into 512x512), or 'none' (use original size)")
+
     args = ap.parse_args()
 
     os.makedirs(args.out_dir, exist_ok=True)
@@ -310,7 +350,7 @@ def main():
                 img_path=ipath, aedat_path=aedat_path,
                 pattern=args.pattern, hz=args.hz, settle_s=args.settle,
                 loops=args.loops, step=args.step, speed=args.speed,
-                transition_s=args.transition, simple_duration_s=args.duration
+                transition_s=args.transition, simple_duration_s=args.duration,fit=args.fit
             )
 
             wall_end = int(time.time() * 1e6)
