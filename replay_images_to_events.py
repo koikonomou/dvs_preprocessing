@@ -39,18 +39,39 @@ def make_writer(path: str, cam):
     # Auto-configure to write all streams provided by the camera
     return dv.io.MonoCameraWriter(path, cam)
 
+def batch_len(batch):
+    """Return number of items in a dv_processing batch (EventStore/list/etc.)."""
+    if batch is None:
+        return 0
+    # dv_processing.EventStore has a .size() method
+    if hasattr(batch, "size") and callable(batch.size):
+        return batch.size()
+    # lists/tuples/ndarrays
+    try:
+        return len(batch)
+    except Exception:
+        return 0
 
 # ------------------------------- Display helpers ------------------------------
 
 def init_display(fullscreen: bool = True):
     pygame.display.init()
+    # Init font module explicitly and use default font to avoid fc-list
+    pygame.font.init()
+
     info = pygame.display.Info()
     size = (info.current_w, info.current_h)
     flags = pygame.FULLSCREEN if fullscreen else 0
     screen = pygame.display.set_mode(size, flags)
     pygame.mouse.set_visible(False)
     clock = pygame.time.Clock()
-    font = pygame.font.SysFont(None, 28)
+
+    # Use default font instead of SysFont to avoid system font scan
+    try:
+        font = pygame.font.Font(None, 28)
+    except Exception as e:
+        print(f"[warn] font init failed: {e}")
+        font = None
     return screen, clock, size, font
 
 def load_to_512_surface(img_path: str) -> pygame.Surface:
@@ -193,25 +214,28 @@ def record_one_image(cam,
             screen.blit(surf, (ox, oy))
             pygame.display.flip()
 
-            # drain camera and WRITE streams
+            # events
             ev = cam.getNextEventBatch()
-            if ev is not None and not ev.empty():
+            if batch_len(ev) > 0:
                 writer.writeEvents(ev)
-                events_written += ev.size()
+                events_written += batch_len(ev)
 
+            # frames
             fr = cam.getNextFrame()
             if fr is not None:
                 writer.writeFrame(fr)
                 frames_written += 1
 
+            # IMU
             imu = cam.getNextImuBatch()
-            if imu is not None and len(imu) > 0:
+            if batch_len(imu) > 0:
                 for m in imu:
                     writer.writeImu(m)
                     imu_written += 1
 
+            # triggers
             trg = cam.getNextTriggerBatch()
-            if trg is not None and len(trg) > 0:
+            if batch_len(trg) > 0:
                 for tr in trg:
                     writer.writeTrigger(tr)
                     trg_written += 1
