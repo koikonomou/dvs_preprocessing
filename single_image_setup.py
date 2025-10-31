@@ -100,9 +100,9 @@ def main():
     ap.add_argument("--fit", choices=["resize","letterbox","none"], default="resize",
                     help="resize=stretch to 512, letterbox=preserve aspect in 512, none=original size")
     ap.add_argument("--hz", type=int, default=60)
-    ap.add_argument("--loops", type=int, default=6)
-    ap.add_argument("--step", type=int, default=10)
-    ap.add_argument("--speed", type=int, default=200)
+    ap.add_argument("--loops", type=int, default=10)
+    ap.add_argument("--step", type=int, default=12)
+    ap.add_argument("--speed", type=int, default=180)
     ap.add_argument("--settle", type=float, default=0.4)
     ap.add_argument("--transition", type=float, default=2.0)
     ap.add_argument("--windowed", action="store_true")
