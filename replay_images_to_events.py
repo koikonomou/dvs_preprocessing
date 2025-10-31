@@ -298,9 +298,9 @@ def main():
     ap.add_argument("--hz", type=int, default=60, help="Display refresh/animation rate")
     ap.add_argument("--pattern", default="RCLS", choices=["RCLS", "H", "V", "HV"], help="Motion pattern")
     # Paper params (RCLS)
-    ap.add_argument("--loops", type=int, default=6, help="RCLS loops (paper: 6)")
-    ap.add_argument("--step", type=int, default=10, help="RCLS step in pixels between waypoints (paper: 10)")
-    ap.add_argument("--speed", type=int, default=200, help="RCLS per-axis speed in px/s (paper: ~200)")
+    ap.add_argument("--loops", type=int, default=10, help="RCLS loops (paper: 6)")
+    ap.add_argument("--step", type=int, default=12, help="RCLS step in pixels between waypoints (paper: 10)")
+    ap.add_argument("--speed", type=int, default=180, help="RCLS per-axis speed in px/s (paper: ~200)")
     ap.add_argument("--transition", type=float, default=2.0, help="Pause (s) between images (paper: ~2.0)")
     ap.add_argument("--settle", type=float, default=0.4, help="Static settle time before motion (s)")
     # Simple sweep fallback
